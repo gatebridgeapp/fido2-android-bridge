@@ -4,6 +4,22 @@ All notable changes to this project.
 
 <!-- Entries are prepended by scripts/release/bump.py on each release. -->
 
+## v0.5.0
+
+### Added
+
+- Accessible progress indicators on the Android loading screen, with tests
+- Camera-deny fallback flow on the Android pairing screen, with tests
+
+### Changed
+
+- Introduced shared Android a11y/UI infrastructure used by subscribe and home screens
+- Improved accessibility and UX on the subscribe and home screens
+
+### Fixed
+
+- Make the androidTest APK buildable by using dex-safe test method names
+
 ## v0.4.0
 
 ### Added
