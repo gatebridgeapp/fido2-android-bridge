@@ -145,9 +145,28 @@ Plugin 8.5.2 / Gradle 8.7 (wrapped).
 ```
 
 > The `oss`/`play` **distribution flavors** split the app: `oss` is the default
-> (self-hosted relay, no billing) and `play` adds Google Play Billing + the
-> managed relay. Gradle tasks must be variant-qualified — `testDebugUnitTest`,
-> `lintDebug`, and `assembleDebug` are ambiguous and fail.
+> (self-hosted relay, no billing) and `play` adds Google Play Billing, the
+> managed relay, and reviewer/partner invite codes. Gradle tasks must be
+> variant-qualified — `testDebugUnitTest`, `lintDebug`, and `assembleDebug` are
+> ambiguous and fail.
+
+### Entitlement & invite codes (play flavor)
+
+The `play` flavor gates the managed relay on either a subscription
+(`PlayBillingSubscriptionRepository`) or an 8-digit **invite code**:
+
+- `Entitlement` is session-latched per process (`LatchingSubscriptionRepository`):
+  once `ENTITLED`, it is never revoked mid-session; a cold start re-evaluates.
+- Invite codes (`InviteCodeValidator`, `InviteCodeClient` →
+  `PlayInviteCodeClient`) are 8 decimal digits redeemed against
+  `POST {GATEBRIDGE_API_URL}/v1/play/session` (`{"inviteCode": "…"}`) and held
+  **in memory only** — never persisted or logged. The Subscribe screen exposes a
+  **Have an invite code?** button (play only).
+- `oss` binds `AlwaysEntitledSubscriptionRepository` + `NoOpInviteCodeClient`:
+  no billing and no invite entry point.
+
+Full contracts: [`../playstore/plans/invite-code.md`](../playstore/plans/invite-code.md)
+and [`../playstore/plans/billing.md`](../playstore/plans/billing.md).
 
 For the headless-emulator E2E (real APK + live Centrifugo + `mock-daemon`), see
 `plans/plan.md` Phase 12; the exact emulator/SDK install state and cleanup
@@ -199,7 +218,11 @@ Versions must match across:
 - `linux-fido-daemon/pyproject.toml`
 - git tag `vX.Y.Z`
 
-1. Set repo secret `OPENCODE_GO_API_KEY` (OpenCode Console → Go, **inference**).
+1. Set repo secrets:
+   - `OPENCODE_GO_API_KEY` (OpenCode Console → Go, **inference**).
+   - `FIREBASE_SERVICE_ACCOUNT` — the service-account JSON for Firebase App
+     Distribution (project `gatebridge-5e28c`, role **Firebase App Distribution
+     Admin**). Optional: when unset, the post-release upload step is skipped.
 2. Environment **`release`**: Settings → Environments → `release` → **Required
    reviewers** → `andreparames`. Leave **Prevent self-review** **off** so you can
    approve your own runs.
@@ -215,6 +238,9 @@ Versions must match across:
      `GITHUB_TOKEN` — does not start another CI run)
    - rebuilds APK + daemon dist from the tagged tree, verifies APK signer
    - `gh release create` with APK + wheel + sdist + changelog notes
+   - uploads the debug APK to Firebase App Distribution (tester
+     `icebraining@gmail.com`, changelog as release notes) when the
+     `FIREBASE_SERVICE_ACCOUNT` secret is set
 
 Pushes made with the workflow `GITHUB_TOKEN` do not trigger further workflow
 runs ([docs](https://docs.github.com/en/actions/using-workflows/triggering-a-workflow)).

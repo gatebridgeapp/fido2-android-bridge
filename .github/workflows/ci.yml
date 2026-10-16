@@ -282,6 +282,8 @@ jobs:
       contents: write
     env:
       EXPECTED_APK_SIGNER_SHA256: "d1df9ef0eefd2802ab1724991774d8471c71d62bb5802ba2fc14cffb3b95be87"
+      # Non-empty enables the post-release Firebase App Distribution upload.
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -443,3 +445,17 @@ jobs:
             --title "$tag" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --verify-tag
+
+      - name: Deploy debug APK to Firebase App Distribution
+        # Skipped when the repo secret is unset, so the release still succeeds.
+        if: env.FIREBASE_SERVICE_ACCOUNT != ''
+        working-directory: android-fido-client
+        env:
+          FIREBASE_RELEASE_NOTES_FILE: ${{ runner.temp }}/release-notes.md
+        run: |
+          set -euo pipefail
+          creds="$RUNNER_TEMP/firebase-deploy-key.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$creds"
+          chmod 600 "$creds"
+          export GOOGLE_APPLICATION_CREDENTIALS="$creds"
+          ./gradlew appDistributionUploadOssDebug
