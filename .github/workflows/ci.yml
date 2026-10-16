@@ -446,7 +446,7 @@ jobs:
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --verify-tag
 
-      - name: Deploy debug APK to Firebase App Distribution
+      - name: Deploy debug APKs (oss + play) to Firebase App Distribution
         # Skipped when the repo secret is unset, so the release still succeeds.
         if: env.FIREBASE_SERVICE_ACCOUNT != ''
         working-directory: android-fido-client
@@ -458,4 +458,6 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$creds"
           chmod 600 "$creds"
           export GOOGLE_APPLICATION_CREDENTIALS="$creds"
-          ./gradlew appDistributionUploadOssDebug
+          # The upload task does not depend on assemble, so build first.
+          ./gradlew assembleOssDebug assemblePlayDebug
+          ./gradlew appDistributionUploadOssDebug appDistributionUploadPlayDebug
