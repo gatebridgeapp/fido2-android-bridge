@@ -238,7 +238,7 @@ Versions must match across:
      `GITHUB_TOKEN` — does not start another CI run)
    - rebuilds APK + daemon dist from the tagged tree, verifies APK signer
    - `gh release create` with APK + wheel + sdist + changelog notes
-   - uploads the debug APK to Firebase App Distribution (tester
+   - uploads the debug APKs (oss + play) to Firebase App Distribution (tester
      `icebraining@gmail.com`, changelog as release notes) when the
      `FIREBASE_SERVICE_ACCOUNT` secret is set
 
