@@ -4,6 +4,12 @@ All notable changes to this project.
 
 <!-- Entries are prepended by scripts/release/bump.py on each release. -->
 
+## v0.5.1
+
+### Changed
+
+- **Android**: Debug builds are now distributed via Firebase App Distribution (CI/CD change, no impact on released artifacts).
+
 ## v0.5.0
 
 ### Added
