@@ -43,3 +43,11 @@ build/
 
 # Centrifugo (contains secrets)
 config.json
+
+# Play / Google service-account keys (never commit)
+gb-play.json
+*service-account*.json
+*play-service-account*
+*firebase-deploy*.json
+*-deploy-key.json
+scripts/*.pem

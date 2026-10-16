@@ -1,4 +1,6 @@
 import java.net.URI
+import java.util.Properties
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
@@ -89,6 +92,22 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             // Debug builds publish diagnostics to the relay log channel.
             buildConfigField("boolean", "DIAGNOSTIC_RELAY_ENABLED", "true")
+            // Firebase App Distribution: `./gradlew appDistributionUploadOssDebug`
+            // Uploads the debug APK to testers. Credentials come from
+            // GOOGLE_APPLICATION_CREDENTIALS or local.properties
+            // (firebase.serviceCredentialsFile); never committed.
+            firebaseAppDistribution {
+                appId = firebaseAppId()
+                artifactType = "APK"
+                testers = firebaseTesters()
+                firebaseServiceCredentialsFile()?.let { serviceCredentialsFile = it }
+                val notesFile = firebaseReleaseNotesFile()
+                if (notesFile != null) {
+                    releaseNotesFile = notesFile
+                } else {
+                    releaseNotes = "fido-bridge debug build"
+                }
+            }
         }
         release {
             isMinifyEnabled = false
@@ -217,3 +236,33 @@ fun relayToken(): String {
 
 fun escapeForBuildConfig(value: String): String =
     value.replace("\\", "\\\\").replace("\"", "\\\"")
+
+// --- Firebase App Distribution (build-time only; no Firebase SDK in the app) ---
+// The App ID is public: it is the same value that would ship in
+// google-services.json. Override per-environment via FIREBASE_APP_ID.
+fun firebaseAppId(): String =
+    System.getenv("FIREBASE_APP_ID")
+        ?: "1:336869256954:android:74edbd007980583321a343"
+
+// Tester emails to distribute debug builds to. Override via FIREBASE_TESTERS.
+fun firebaseTesters(): String =
+    System.getenv("FIREBASE_TESTERS")
+        ?: "icebraining@gmail.com"
+
+// Optional plain-text release-notes file (CI passes the generated CHANGELOG
+// section). Falls back to a generic note when unset.
+fun firebaseReleaseNotesFile(): String? =
+    System.getenv("FIREBASE_RELEASE_NOTES_FILE")
+
+// Service-account key used to authenticate the upload. Prefer the standard ADC
+// env var; otherwise read a gitignored local.properties entry
+// (firebase.serviceCredentialsFile=/abs/path/key.json). Returning null lets the
+// plugin fall back to its own ADC lookup.
+fun firebaseServiceCredentialsFile(): String? =
+    System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        ?: rootProject.file("local.properties")
+            .takeIf { it.exists() }
+            ?.let { file ->
+                Properties().apply { file.inputStream().use(::load) }
+                    .getProperty("firebase.serviceCredentialsFile")
+            }
