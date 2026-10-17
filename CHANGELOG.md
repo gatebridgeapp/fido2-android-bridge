@@ -4,6 +4,13 @@ All notable changes to this project.
 
 <!-- Entries are prepended by scripts/release/bump.py on each release. -->
 
+## v0.5.2
+
+### Changed
+
+- CI: distribute oss + play debug APKs in release CI
+- Build: configure Firebase oss + play upload in release pipeline
+
 ## v0.5.1
 
 ### Changed
