@@ -64,6 +64,12 @@ android {
             )
             buildConfigField("String", "MANAGED_RELAY", "\"false\"")
             buildConfigField("boolean", "PLAY_BILLING_REQUIRED", "false")
+            // App Distribution has no release tags; prefix the release notes so
+            // the oss/play uploads are distinguishable in the console. Flavor
+            // config takes precedence over the shared debug buildType config.
+            firebaseAppDistribution {
+                releaseNotes = firebaseReleaseNotes("oss")
+            }
         }
         create("play") {
             dimension = "distribution"
@@ -84,6 +90,9 @@ android {
             )
             buildConfigField("String", "MANAGED_RELAY", "\"true\"")
             buildConfigField("boolean", "PLAY_BILLING_REQUIRED", "true")
+            firebaseAppDistribution {
+                releaseNotes = firebaseReleaseNotes("play")
+            }
         }
     }
 
@@ -92,21 +101,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             // Debug builds publish diagnostics to the relay log channel.
             buildConfigField("boolean", "DIAGNOSTIC_RELAY_ENABLED", "true")
-            // Firebase App Distribution: `./gradlew appDistributionUploadOssDebug`
-            // Uploads the debug APK to testers. Credentials come from
-            // GOOGLE_APPLICATION_CREDENTIALS or local.properties
+            // Firebase App Distribution: `./gradlew appDistributionUploadOssDebug
+            // appDistributionUploadPlayDebug`. Shared config for both flavors;
+            // per-flavor release notes are set in productFlavors. Credentials
+            // come from GOOGLE_APPLICATION_CREDENTIALS or local.properties
             // (firebase.serviceCredentialsFile); never committed.
             firebaseAppDistribution {
                 appId = firebaseAppId()
                 artifactType = "APK"
                 testers = firebaseTesters()
                 firebaseServiceCredentialsFile()?.let { serviceCredentialsFile = it }
-                val notesFile = firebaseReleaseNotesFile()
-                if (notesFile != null) {
-                    releaseNotesFile = notesFile
-                } else {
-                    releaseNotes = "fido-bridge debug build"
-                }
             }
         }
         release {
@@ -249,10 +253,19 @@ fun firebaseTesters(): String =
     System.getenv("FIREBASE_TESTERS")
         ?: "icebraining@gmail.com"
 
-// Optional plain-text release-notes file (CI passes the generated CHANGELOG
-// section). Falls back to a generic note when unset.
-fun firebaseReleaseNotesFile(): String? =
-    System.getenv("FIREBASE_RELEASE_NOTES_FILE")
+// Release notes for a flavor's App Distribution upload. App Distribution has
+// no release tags, so the `[<flavor>]` prefix distinguishes the oss/play
+// uploads (which share version and package name) in the console and tester app.
+// When CI provides FIREBASE_RELEASE_NOTES_FILE (the generated CHANGELOG
+// section), its contents are appended.
+fun firebaseReleaseNotes(flavor: String): String {
+    val header = "[$flavor]"
+    val notesFile = System.getenv("FIREBASE_RELEASE_NOTES_FILE")
+    val body = notesFile
+        ?.let { rootProject.file(it).takeIf { f -> f.exists() }?.readText()?.trim() }
+        .orEmpty()
+    return if (body.isEmpty()) "$header fido-bridge debug build" else "$header\n$body"
+}
 
 // Service-account key used to authenticate the upload. Prefer the standard ADC
 // env var; otherwise read a gitignored local.properties entry
